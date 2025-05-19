@@ -96,7 +96,10 @@ async fn main() -> Result<()> {
                     .as_millis() as u64,
             };
             match sui_publisher::submit_price_update(btc_price_info).await {
-                Ok(digest) => log::info!("Successfully submitted BTC/USD price update to Sui. Digest: {}", digest),
+                Ok(digest) => log::info!(
+                    "Successfully submitted BTC/USD price update to Sui. Digest: {}",
+                    digest
+                ),
                 Err(e) => log::error!("Failed to submit BTC/USD price update to Sui: {:?}", e),
             }
         } else {
@@ -140,14 +143,20 @@ async fn main() -> Result<()> {
                     .as_millis() as u64,
             };
             match sui_publisher::submit_price_update(eth_price_info).await {
-                Ok(digest) => log::info!("Successfully submitted ETH/USD price update to Sui. Digest: {}", digest),
+                Ok(digest) => log::info!(
+                    "Successfully submitted ETH/USD price update to Sui. Digest: {}",
+                    digest
+                ),
                 Err(e) => log::error!("Failed to submit ETH/USD price update to Sui: {:?}", e),
             }
         } else {
             log::warn!("Could not aggregate ETH/USD price. Not enough data.");
         }
 
-        log::info!("--- Waiting for next fetch cycle ({} seconds) ---", settings.general.fetch_interval_seconds);
+        log::info!(
+            "--- Waiting for next fetch cycle ({} seconds) ---",
+            settings.general.fetch_interval_seconds
+        );
         sleep(Duration::from_secs(settings.general.fetch_interval_seconds)).await;
     }
 }
