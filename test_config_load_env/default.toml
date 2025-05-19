@@ -1,0 +1,5 @@
+
+[apis.binance]
+base_url = "https://api.binance.com/api/v3"
+symbols = ["BTCUSDT", "ETHUSDT"]
+        

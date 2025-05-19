@@ -1,4 +1,5 @@
 use anyhow::Result;
+use tokio::time::{sleep, Duration};
 
 mod aggregator;
 mod binance_client;
@@ -15,83 +16,71 @@ async fn main() -> Result<()> {
     env_logger::init();
     log::info!("Neo Oracle MVP starting");
 
-    // Load configuration
     let settings = match config::Settings::load() {
         Ok(s) => s,
         Err(e) => {
             log::error!("Failed to load configuration: {}", e);
-            // Depending on severity, you might want to panic or exit
             return Err(anyhow::anyhow!("Configuration loading failed: {}", e));
         }
     };
-    log::info!("Configuration loaded successfully.");
+    log::info!("Configuration loaded successfully. Starting main loop...");
 
-    let binance_prices_map = match binance_client::get_binance_prices(&settings.apis.binance).await {
-        Ok(prices) => {
-            log::info!("Successfully fetched prices from Binance:");
-            for (symbol, price) in &prices {
-                println!("Binance - {}: {}", symbol, price);
+    loop {
+        log::info!("--- Fetching new prices ---");
+
+        let binance_prices_map = match binance_client::get_binance_prices(&settings.apis.binance).await {
+            Ok(prices) => {
+                log::info!("Successfully fetched prices from Binance:");
+                for (symbol, price) in &prices {
+                    log::debug!("Binance - {}: {}", symbol, price);
+                }
+                Some(prices)
             }
-            Some(prices)
-        }
-        Err(e) => {
-            log::error!("Failed to fetch prices from Binance: {}", e);
-            None
-        }
-    };
-
-    let coinbase_prices_map = match coinbase_client::get_coinbase_prices(&settings.apis.coinbase).await {
-        Ok(prices) => {
-            log::info!("Successfully fetched prices from Coinbase:");
-            for (symbol, price) in &prices {
-                println!("Coinbase - {}: {}", symbol, price);
+            Err(e) => {
+                log::error!("Failed to fetch prices from Binance: {}", e);
+                None
             }
-            Some(prices)
+        };
+
+        let coinbase_prices_map = match coinbase_client::get_coinbase_prices(&settings.apis.coinbase).await {
+            Ok(prices) => {
+                log::info!("Successfully fetched prices from Coinbase:");
+                for (symbol, price) in &prices {
+                    log::debug!("Coinbase - {}: {}", symbol, price);
+                }
+                Some(prices)
+            }
+            Err(e) => {
+                log::error!("Failed to fetch prices from Coinbase: {}", e);
+                None
+            }
+        };
+
+        let btc_binance_symbol = settings.apis.binance.symbols.iter().find(|s| s.contains("BTC")).map(|s| s.as_str());
+        let btc_coinbase_symbol = settings.apis.coinbase.symbols.iter().find(|s| s.contains("BTC")).map(|s| s.as_str());
+        let btc_price_binance = btc_binance_symbol.and_then(|sym| binance_prices_map.as_ref().and_then(|m| parse_price(m.get(sym))));
+        let btc_price_coinbase = btc_coinbase_symbol.and_then(|sym| coinbase_prices_map.as_ref().and_then(|m| parse_price(m.get(sym))));
+        
+        let btc_prices_to_aggregate = [btc_price_binance, btc_price_coinbase];
+        if let Some(aggregated_btc_price) = aggregator::aggregate_prices(&btc_prices_to_aggregate) {
+            log::info!("Aggregated BTC/USD Price: {:.2}", aggregated_btc_price);
+        } else {
+            log::warn!("Could not aggregate BTC/USD price. Not enough data.");
         }
-        Err(e) => {
-            log::error!("Failed to fetch prices from Coinbase: {}", e);
-            None
+
+        let eth_binance_symbol = settings.apis.binance.symbols.iter().find(|s| s.contains("ETH")).map(|s| s.as_str());
+        let eth_coinbase_symbol = settings.apis.coinbase.symbols.iter().find(|s| s.contains("ETH")).map(|s| s.as_str());
+        let eth_price_binance = eth_binance_symbol.and_then(|sym| binance_prices_map.as_ref().and_then(|m| parse_price(m.get(sym))));
+        let eth_price_coinbase = eth_coinbase_symbol.and_then(|sym| coinbase_prices_map.as_ref().and_then(|m| parse_price(m.get(sym))));
+
+        let eth_prices_to_aggregate = [eth_price_binance, eth_price_coinbase];
+        if let Some(aggregated_eth_price) = aggregator::aggregate_prices(&eth_prices_to_aggregate) {
+            log::info!("Aggregated ETH/USD Price: {:.2}", aggregated_eth_price);
+        } else {
+            log::warn!("Could not aggregate ETH/USD price. Not enough data.");
         }
-    };
 
-    // --- Price Aggregation ---
-    // Define asset mappings from config symbols. 
-    // For MVP, we assume fixed symbols from config, but this could be more dynamic.
-    // Binance: BTCUSDT, ETHUSDT (from config.apis.binance.symbols)
-    // Coinbase: BTC-USD, ETH-USD (from config.apis.coinbase.symbols)
-
-    // Aggregate BTC price
-    let btc_binance_symbol = settings.apis.binance.symbols.iter().find(|s| s.contains("BTC")).map(|s| s.as_str());
-    let btc_coinbase_symbol = settings.apis.coinbase.symbols.iter().find(|s| s.contains("BTC")).map(|s| s.as_str());
-
-    let btc_price_binance = btc_binance_symbol.and_then(|sym| binance_prices_map.as_ref().and_then(|m| parse_price(m.get(sym))));
-    let btc_price_coinbase = btc_coinbase_symbol.and_then(|sym| coinbase_prices_map.as_ref().and_then(|m| parse_price(m.get(sym))));
-    
-    let btc_prices_to_aggregate = [btc_price_binance, btc_price_coinbase];
-    if let Some(aggregated_btc_price) = aggregator::aggregate_prices(&btc_prices_to_aggregate) {
-        log::info!("Aggregated BTC/USD Price: {:.2}", aggregated_btc_price);
-        println!("Aggregated BTC/USD Price: {:.2}", aggregated_btc_price);
-    } else {
-        log::warn!("Could not aggregate BTC/USD price. Not enough data.");
-        println!("Could not aggregate BTC/USD price. Not enough data.");
+        log::info!("--- Waiting for next fetch cycle (5 seconds) ---");
+        sleep(Duration::from_secs(5)).await;
     }
-
-    // Aggregate ETH price
-    let eth_binance_symbol = settings.apis.binance.symbols.iter().find(|s| s.contains("ETH")).map(|s| s.as_str());
-    let eth_coinbase_symbol = settings.apis.coinbase.symbols.iter().find(|s| s.contains("ETH")).map(|s| s.as_str());
-
-    let eth_price_binance = eth_binance_symbol.and_then(|sym| binance_prices_map.as_ref().and_then(|m| parse_price(m.get(sym))));
-    let eth_price_coinbase = eth_coinbase_symbol.and_then(|sym| coinbase_prices_map.as_ref().and_then(|m| parse_price(m.get(sym))));
-
-    let eth_prices_to_aggregate = [eth_price_binance, eth_price_coinbase];
-    if let Some(aggregated_eth_price) = aggregator::aggregate_prices(&eth_prices_to_aggregate) {
-        log::info!("Aggregated ETH/USD Price: {:.2}", aggregated_eth_price);
-        println!("Aggregated ETH/USD Price: {:.2}", aggregated_eth_price);
-    } else {
-        log::warn!("Could not aggregate ETH/USD price. Not enough data.");
-        println!("Could not aggregate ETH/USD price. Not enough data.");
-    }
-
-    log::info!("Neo Oracle MVP finished");
-    Ok(())
 }
