@@ -1,6 +1,7 @@
 use anyhow::Result;
 
 mod binance_client;
+mod coinbase_client;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -11,7 +12,7 @@ async fn main() -> Result<()> {
     match binance_client::get_binance_prices().await {
         Ok(prices) => {
             log::info!("Successfully fetched prices from Binance:");
-            for (symbol, price) in prices {
+            for (symbol, price) in &prices {
                 println!("Binance - {}: {}", symbol, price);
             }
         }
@@ -20,7 +21,19 @@ async fn main() -> Result<()> {
         }
     }
 
-    println!("Hello, Neo Oracle MVP!");
+    // Fetch and print Coinbase prices
+    match coinbase_client::get_coinbase_prices().await {
+        Ok(prices) => {
+            log::info!("Successfully fetched prices from Coinbase:");
+            for (symbol, price) in &prices {
+                println!("Coinbase - {}: {}", symbol, price);
+            }
+        }
+        Err(e) => {
+            log::error!("Failed to fetch prices from Coinbase: {}", e);
+        }
+    }
+
     log::info!("Neo Oracle MVP finished");
     Ok(())
 }
