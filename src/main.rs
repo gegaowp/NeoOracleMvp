@@ -5,6 +5,7 @@ mod aggregator;
 mod binance_client;
 mod coinbase_client;
 mod config;
+mod sui_publisher;
 
 // Helper function to parse price string to Option<f64>
 fn parse_price(price_str_opt: Option<&String>) -> Option<f64> {

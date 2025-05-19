@@ -9,6 +9,12 @@ reqwest = { version = "0.11", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 anyhow = "1.0"
+sui-sdk = { git = "https://github.com/mystenlabs/sui", package = "sui-sdk" }
 log = "0.4"
 env_logger = "0.10"
 config = { version = "0.13", features = ["toml"] }
+fastcrypto = { git = "https://github.com/MystenLabs/fastcrypto" }
+move-core-types = { git = "https://github.com/mystenlabs/sui", package = "move-core-types" }
+bcs = "0.1.6"
+sui-types = { git = "https://github.com/mystenlabs/sui", package = "sui-types" }
+shared-crypto = { git = "https://github.com/mystenlabs/sui", package = "shared-crypto" }
