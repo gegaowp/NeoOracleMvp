@@ -15,8 +15,14 @@ pub struct ApiConfigs {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct GeneralSettings {
+    pub fetch_interval_seconds: u64,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct Settings {
     pub apis: ApiConfigs,
+    pub general: GeneralSettings,
     // We could add other general settings here later, e.g., logging level, aggregation strategy, etc.
 }
 
@@ -62,6 +68,9 @@ symbols = ["BTCUSDT", "ETHUSDT"]
 [apis.coinbase]
 base_url = "https://api.exchange.coinbase.com"
 symbols = ["BTC-USD", "ETH-USD"]
+
+[general]
+fetch_interval_seconds = 5
         "#,
         )?;
 
@@ -80,6 +89,7 @@ symbols = ["BTC-USD", "ETH-USD"]
             "https://api.exchange.coinbase.com"
         );
         assert_eq!(settings.apis.coinbase.symbols, vec!["BTC-USD", "ETH-USD"]);
+        assert_eq!(settings.general.fetch_interval_seconds, 5);
 
         // Clean up
         fs::remove_dir_all(config_dir)?;
@@ -101,10 +111,13 @@ symbols = ["BTCUSDT", "ETHUSDT"]
 [apis.coinbase]
 base_url = "https://api.exchange.coinbase.com"
 symbols = ["BTC-USD", "ETH-USD"]
+
+[general]
+fetch_interval_seconds = 10 # Default interval
         "#,
         )?;
 
-        // Local override for binance url and one symbol
+        // Local override for binance url and one symbol, and fetch interval
         create_temp_config_file(
             config_dir,
             "local",
@@ -112,6 +125,9 @@ symbols = ["BTC-USD", "ETH-USD"]
 [apis.binance]
 base_url = "http://localhost:8080/binance"
 symbols = ["DOGEUSDT"]
+
+[general]
+fetch_interval_seconds = 3 # Override interval
         "#,
         )?;
 
@@ -133,6 +149,7 @@ symbols = ["DOGEUSDT"]
             "https://api.exchange.coinbase.com"
         );
         assert_eq!(settings.apis.coinbase.symbols, vec!["BTC-USD", "ETH-USD"]);
+        assert_eq!(settings.general.fetch_interval_seconds, 3);
 
         fs::remove_dir_all(config_dir)?;
         Ok(())

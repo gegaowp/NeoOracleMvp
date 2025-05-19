@@ -1,12 +1,15 @@
 # Default configuration for Neo Oracle MVP
 
 [apis.binance]
-base_url = "https://api.binance.com/api/v3/ticker/price" # Specific endpoint for ticker price
+base_url = "https://api.binance.com/api/v3/ticker/price"
 symbols = ["BTCUSDT", "ETHUSDT"]
 
 [apis.coinbase]
-base_url = "https://api.exchange.coinbase.com/products" # Base for product-specific paths
+base_url = "https://api.exchange.coinbase.com/products"
 symbols = ["BTC-USD", "ETH-USD"]
 
 # Example for adding another symbol later:
-# symbols = ["BTCUSDT", "ETHUSDT", "ADAUSDT"] 
+# symbols = ["BTCUSDT", "ETHUSDT", "ADAUSDT"]
+
+[general]
+fetch_interval_seconds = 5 # Default fetch interval in seconds 

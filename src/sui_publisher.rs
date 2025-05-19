@@ -84,11 +84,11 @@ async fn get_or_create_price_object_id(
 ) -> Result<ObjectID> {
     let mut known_objects = load_known_objects()?;
     if let Some(object_id) = known_objects.get(symbol) {
-        println!("Found existing ObjectID {} for symbol {}", object_id, symbol);
+        log::info!("Found existing ObjectID {} for symbol {}", object_id, symbol);
         return Ok(*object_id);
     }
 
-    println!("No ObjectID found for symbol {}. Creating new PriceObject...", symbol);
+    log::info!("No ObjectID found for symbol {}. Creating new PriceObject...", symbol);
 
     let package_id = ObjectID::from_str(PACKAGE_ID_STR)?;
     let module_ident = Identifier::from_str(MODULE_NAME).context("Invalid module name")?;
@@ -175,7 +175,7 @@ async fn get_or_create_price_object_id(
                 if let Some(obj_type) = obj_data.type_ {
                     if obj_type.to_string().contains(&price_object_type_tag_str_pattern) {
                         new_object_id = Some(object_id_to_check);
-                        println!("Found created PriceObject with ID: {}", new_object_id.unwrap());
+                        log::info!("Found created PriceObject with ID: {}", new_object_id.unwrap());
                         break;
                     }
                 }
@@ -196,13 +196,13 @@ async fn get_or_create_price_object_id(
 
     known_objects.insert(symbol.to_string(), new_object_id);
     save_known_objects(&known_objects)?;
-    println!("New PriceObject ID {} for symbol {} saved.", new_object_id, symbol);
+    log::info!("New PriceObject ID {} for symbol {} saved.", new_object_id, symbol);
 
     Ok(new_object_id)
 }
 
 pub async fn submit_price_update(price_info: PriceInfo) -> Result<String> {
-    println!("Attempting to submit price update for: {:?}", price_info);
+    log::info!("Attempting to submit price update for: {:?}", price_info);
 
     let keypair = get_publisher_keypair().context("Failed to get publisher keypair")?;
     
@@ -217,7 +217,7 @@ pub async fn submit_price_update(price_info: PriceInfo) -> Result<String> {
             expected_signer_address
         ));
     }
-    println!("Signer address: {}", signer_address);
+    log::info!("Signer address: {}", signer_address);
 
     let sui_client = SuiClientBuilder::default()
         .request_timeout(Duration::from_secs(30))
@@ -225,7 +225,7 @@ pub async fn submit_price_update(price_info: PriceInfo) -> Result<String> {
         .await
         .context(format!("Failed to build Sui client for URL: {}", SUI_TESTNET_RPC_URL))?;
     
-    println!("Sui client connected to: {}", SUI_TESTNET_RPC_URL);
+    log::info!("Sui client connected to: {}", SUI_TESTNET_RPC_URL);
 
     let price_object_id = get_or_create_price_object_id(
         &sui_client,
@@ -236,7 +236,7 @@ pub async fn submit_price_update(price_info: PriceInfo) -> Result<String> {
     .await
     .context(format!("Failed to get or create PriceObject ID for symbol {}", price_info.symbol))?;
     
-    println!("Using PriceObject ID {} for symbol {}", price_object_id, price_info.symbol);
+    log::info!("Using PriceObject ID {} for symbol {}", price_object_id, price_info.symbol);
     
     let object_to_update_response = sui_client
         .read_api()
@@ -249,7 +249,7 @@ pub async fn submit_price_update(price_info: PriceInfo) -> Result<String> {
     let object_to_update_ref = object_data.object_ref();
 
     let scaled_price_val = scale_price(price_info.price);
-    println!("Scaled price for {}: {} (original: {}, decimals: {})", price_info.symbol, scaled_price_val, price_info.price, DECIMALS);
+    log::info!("Scaled price for {}: {} (original: {}, decimals: {})", price_info.symbol, scaled_price_val, price_info.price, DECIMALS);
 
     let package_id = ObjectID::from_str(PACKAGE_ID_STR)?;
     let module_ident = Identifier::from_str(MODULE_NAME).context("Invalid module name for update")?;
@@ -298,7 +298,7 @@ pub async fn submit_price_update(price_info: PriceInfo) -> Result<String> {
 
     let transaction_envelope = Transaction::from_generic_sig_data(tx_data, vec![fastcrypto_signature.clone().into()]);
 
-    println!("Submitting update_price transaction for symbol {}...", price_info.symbol);
+    log::info!("Submitting update_price transaction for symbol {}...", price_info.symbol);
     let response = sui_client
         .quorum_driver_api()
         .execute_transaction_block(
@@ -316,7 +316,7 @@ pub async fn submit_price_update(price_info: PriceInfo) -> Result<String> {
         ));
     }
     
-    println!(
+    log::info!(
         "Successfully submitted price update for {}. Transaction Digest: {}",
         price_info.symbol, response.digest
     );
@@ -339,14 +339,14 @@ mod tests {
                 .as_millis() as u64,
         };
         
-        println!("Test 1: Submitting first price for {}", btc_price_info_1.symbol);
+        log::debug!("Test 1: Submitting first price for {}", btc_price_info_1.symbol);
         match submit_price_update(btc_price_info_1.clone()).await {
-            Ok(digest) => println!("Test 1 Succeeded. Digest: {}", digest),
+            Ok(digest) => log::debug!("Test 1 Succeeded. Digest: {}", digest),
             Err(e) => {
                 let mut known = load_known_objects().unwrap_or_default();
                 if known.remove(&btc_price_info_1.symbol).is_some() {
                     save_known_objects(&known).expect("Failed to cleanup test symbol from known_objects after Test 1 fail");
-                    println!("Cleaned up test symbol {} from {} after Test 1 fail", btc_price_info_1.symbol, KNOWN_OBJECTS_FILENAME);
+                    log::debug!("Cleaned up test symbol {} from {} after Test 1 fail", btc_price_info_1.symbol, KNOWN_OBJECTS_FILENAME);
                 }
                 panic!("Test 1 Failed: {:?}", e);
             }
@@ -363,16 +363,16 @@ mod tests {
                 .as_millis() as u64
                 + 1000, 
         };
-        println!("\nTest 2: Submitting second price for {}", btc_price_info_2.symbol);
+        log::debug!("\nTest 2: Submitting second price for {}", btc_price_info_2.symbol);
         match submit_price_update(btc_price_info_2).await {
-            Ok(digest) => println!("Test 2 Succeeded. Digest: {}", digest),
+            Ok(digest) => log::debug!("Test 2 Succeeded. Digest: {}", digest),
             Err(e) => panic!("Test 2 Failed: {:?}", e),
         }
         
         let mut known = load_known_objects().unwrap_or_default();
         if known.remove(&btc_price_info_1.symbol).is_some() {
             save_known_objects(&known).expect("Failed to cleanup test symbol from known_objects");
-            println!("Cleaned up test symbol {} from {}", btc_price_info_1.symbol, KNOWN_OBJECTS_FILENAME);
+            log::debug!("Cleaned up test symbol {} from {}", btc_price_info_1.symbol, KNOWN_OBJECTS_FILENAME);
         }
     }
 } 

@@ -87,6 +87,18 @@ async fn main() -> Result<()> {
         let btc_prices_to_aggregate = [btc_price_binance, btc_price_coinbase];
         if let Some(aggregated_btc_price) = aggregator::aggregate_prices(&btc_prices_to_aggregate) {
             log::info!("Aggregated BTC/USD Price: {:.2}", aggregated_btc_price);
+            let btc_price_info = sui_publisher::PriceInfo {
+                symbol: "BTC/USD".to_string(), // Standardized symbol for on-chain
+                price: aggregated_btc_price,
+                timestamp_ms: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis() as u64,
+            };
+            match sui_publisher::submit_price_update(btc_price_info).await {
+                Ok(digest) => log::info!("Successfully submitted BTC/USD price update to Sui. Digest: {}", digest),
+                Err(e) => log::error!("Failed to submit BTC/USD price update to Sui: {:?}", e),
+            }
         } else {
             log::warn!("Could not aggregate BTC/USD price. Not enough data.");
         }
@@ -119,11 +131,23 @@ async fn main() -> Result<()> {
         let eth_prices_to_aggregate = [eth_price_binance, eth_price_coinbase];
         if let Some(aggregated_eth_price) = aggregator::aggregate_prices(&eth_prices_to_aggregate) {
             log::info!("Aggregated ETH/USD Price: {:.2}", aggregated_eth_price);
+            let eth_price_info = sui_publisher::PriceInfo {
+                symbol: "ETH/USD".to_string(), // Standardized symbol for on-chain
+                price: aggregated_eth_price,
+                timestamp_ms: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis() as u64,
+            };
+            match sui_publisher::submit_price_update(eth_price_info).await {
+                Ok(digest) => log::info!("Successfully submitted ETH/USD price update to Sui. Digest: {}", digest),
+                Err(e) => log::error!("Failed to submit ETH/USD price update to Sui: {:?}", e),
+            }
         } else {
             log::warn!("Could not aggregate ETH/USD price. Not enough data.");
         }
 
-        log::info!("--- Waiting for next fetch cycle (5 seconds) ---");
-        sleep(Duration::from_secs(5)).await;
+        log::info!("--- Waiting for next fetch cycle ({} seconds) ---", settings.general.fetch_interval_seconds);
+        sleep(Duration::from_secs(settings.general.fetch_interval_seconds)).await;
     }
 }
