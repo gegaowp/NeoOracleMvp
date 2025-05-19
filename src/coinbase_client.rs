@@ -1,8 +1,8 @@
+use crate::config::ExchangeConfig;
 use anyhow::Result;
 use reqwest::Client;
 use serde::Deserialize;
 use std::collections::HashMap;
-use crate::config::ExchangeConfig;
 
 #[derive(Deserialize, Debug)]
 pub struct CoinbaseTickerResponse {
@@ -11,20 +11,29 @@ pub struct CoinbaseTickerResponse {
     // We only care about the price for now.
 }
 
-async fn get_coinbase_ticker_price(client: &Client, base_url: &str, product_id: &str) -> Result<CoinbaseTickerResponse> {
+async fn get_coinbase_ticker_price(
+    client: &Client,
+    base_url: &str,
+    product_id: &str,
+) -> Result<CoinbaseTickerResponse> {
     // Construct URL from base_url and product_id
     let url = format!("{}/{}/ticker", base_url, product_id);
     log::debug!("Fetching price for {} from Coinbase: {}", product_id, url);
 
     // Coinbase API often requires a User-Agent header
-    let response = client.get(&url)
+    let response = client
+        .get(&url)
         .header("User-Agent", "neo-oracle-mvp") // Simple User-Agent
         .send()
         .await?;
 
     response.error_for_status_ref()?; // Ensure we have a success status
     let ticker_response = response.json::<CoinbaseTickerResponse>().await?;
-    log::info!("Fetched price for {}: {}", product_id, ticker_response.price);
+    log::info!(
+        "Fetched price for {}: {}",
+        product_id,
+        ticker_response.price
+    );
     Ok(ticker_response)
 }
 
@@ -39,7 +48,11 @@ pub async fn get_coinbase_prices(config: &ExchangeConfig) -> Result<HashMap<Stri
                 prices.insert(product_id.to_string(), response.price);
             }
             Err(e) => {
-                log::error!("Failed to fetch price for {} from Coinbase: {}", product_id, e);
+                log::error!(
+                    "Failed to fetch price for {} from Coinbase: {}",
+                    product_id,
+                    e
+                );
                 // We can decide to return an error for the whole function or just skip this symbol
                 // For MVP, let's log the error and continue, so one failure doesn't stop all.
                 // If a more robust error handling is needed, we can change this.
@@ -82,7 +95,8 @@ mod tests {
             "size": "0.001"
         }
         "#;
-        let parsed_missing: Result<CoinbaseTickerResponse, _> = serde_json::from_str(json_data_missing_price);
+        let parsed_missing: Result<CoinbaseTickerResponse, _> =
+            serde_json::from_str(json_data_missing_price);
         assert!(parsed_missing.is_err());
 
         // Test with price as a number instead of string (if API guarantees string, this should fail)
@@ -91,7 +105,8 @@ mod tests {
             "price": 30000.00
         }
         "#;
-        let parsed_wrong_type: Result<CoinbaseTickerResponse, _> = serde_json::from_str(json_data_wrong_type);
+        let parsed_wrong_type: Result<CoinbaseTickerResponse, _> =
+            serde_json::from_str(json_data_wrong_type);
         // serde might be flexible here, depending on the exact setup.
         // For a strict string requirement, this might pass or fail based on serde's deserialization leniency.
         // Let's assume for now it should be a string, so a direct number might cause issues if not handled.
@@ -100,6 +115,9 @@ mod tests {
         // Sticking to simple test: if it parses, ensure it's not what we expected if it's wrong type.
         // If it does parse a number as string, the value would be "30000" or "30000.0".
         // Let's assume strict string parsing.
-         assert!(parsed_wrong_type.is_err(), "Price should be a string, not a number directly.");
+        assert!(
+            parsed_wrong_type.is_err(),
+            "Price should be a string, not a number directly."
+        );
     }
-} 
+}

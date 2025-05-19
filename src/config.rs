@@ -27,7 +27,7 @@ impl Settings {
             .add_source(File::with_name("config/default").required(true))
             // Add in `./config/local.toml` to override defaults
             .add_source(File::with_name("config/local").required(false));
-        
+
         builder.build()?.try_deserialize()
     }
 }
@@ -39,8 +39,7 @@ mod tests {
     use std::io::Write;
 
     // Helper to create a temporary config file for testing
-    fn create_temp_config_file(dir: &str, name: &str, content: &str) -> Result<()>
-    {
+    fn create_temp_config_file(dir: &str, name: &str, content: &str) -> Result<()> {
         fs::create_dir_all(dir)?;
         let path = format!("{}/{}.toml", dir, name);
         let mut file = fs::File::create(path)?;
@@ -52,7 +51,10 @@ mod tests {
     fn test_load_config_defaults_only() -> Result<()> {
         // Create a dummy default.toml
         let config_dir = "./test_config_load_defaults";
-        create_temp_config_file(config_dir, "default", r#"
+        create_temp_config_file(
+            config_dir,
+            "default",
+            r#"
 [apis.binance]
 base_url = "https://api.binance.com/api/v3"
 symbols = ["BTCUSDT", "ETHUSDT"]
@@ -60,16 +62,23 @@ symbols = ["BTCUSDT", "ETHUSDT"]
 [apis.coinbase]
 base_url = "https://api.exchange.coinbase.com"
 symbols = ["BTC-USD", "ETH-USD"]
-        "#)?;
+        "#,
+        )?;
 
         let s = Config::builder()
             .add_source(File::with_name(&format!("{}/default", config_dir)).required(true))
             .build()?;
         let settings: Settings = s.try_deserialize()?;
 
-        assert_eq!(settings.apis.binance.base_url, "https://api.binance.com/api/v3");
+        assert_eq!(
+            settings.apis.binance.base_url,
+            "https://api.binance.com/api/v3"
+        );
         assert_eq!(settings.apis.binance.symbols, vec!["BTCUSDT", "ETHUSDT"]);
-        assert_eq!(settings.apis.coinbase.base_url, "https://api.exchange.coinbase.com");
+        assert_eq!(
+            settings.apis.coinbase.base_url,
+            "https://api.exchange.coinbase.com"
+        );
         assert_eq!(settings.apis.coinbase.symbols, vec!["BTC-USD", "ETH-USD"]);
 
         // Clean up
@@ -81,7 +90,10 @@ symbols = ["BTC-USD", "ETH-USD"]
     fn test_load_config_with_local_override() -> Result<()> {
         let config_dir = "./test_config_load_local";
         // Default config
-        create_temp_config_file(config_dir, "default", r#"
+        create_temp_config_file(
+            config_dir,
+            "default",
+            r#"
 [apis.binance]
 base_url = "https://api.binance.com/api/v3"
 symbols = ["BTCUSDT", "ETHUSDT"]
@@ -89,14 +101,19 @@ symbols = ["BTCUSDT", "ETHUSDT"]
 [apis.coinbase]
 base_url = "https://api.exchange.coinbase.com"
 symbols = ["BTC-USD", "ETH-USD"]
-        "#)?;
-        
+        "#,
+        )?;
+
         // Local override for binance url and one symbol
-        create_temp_config_file(config_dir, "local", r#"
+        create_temp_config_file(
+            config_dir,
+            "local",
+            r#"
 [apis.binance]
 base_url = "http://localhost:8080/binance"
 symbols = ["DOGEUSDT"]
-        "#)?;
+        "#,
+        )?;
 
         let s = Config::builder()
             .add_source(File::with_name(&format!("{}/default", config_dir)).required(true))
@@ -105,13 +122,19 @@ symbols = ["DOGEUSDT"]
         let settings: Settings = s.try_deserialize()?;
 
         // Binance should be overridden
-        assert_eq!(settings.apis.binance.base_url, "http://localhost:8080/binance");
+        assert_eq!(
+            settings.apis.binance.base_url,
+            "http://localhost:8080/binance"
+        );
         assert_eq!(settings.apis.binance.symbols, vec!["DOGEUSDT"]);
         // Coinbase should remain default
-        assert_eq!(settings.apis.coinbase.base_url, "https://api.exchange.coinbase.com");
+        assert_eq!(
+            settings.apis.coinbase.base_url,
+            "https://api.exchange.coinbase.com"
+        );
         assert_eq!(settings.apis.coinbase.symbols, vec!["BTC-USD", "ETH-USD"]);
 
         fs::remove_dir_all(config_dir)?;
         Ok(())
     }
-} 
+}

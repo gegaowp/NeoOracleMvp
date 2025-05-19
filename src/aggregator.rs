@@ -4,7 +4,10 @@
 /// - If no valid prices remain, returns `None`.
 /// - Otherwise, calculates the arithmetic mean of the valid prices.
 pub fn aggregate_prices(price_options: &[Option<f64>]) -> Option<f64> {
-    let valid_prices: Vec<f64> = price_options.iter().filter_map(|&opt_price| opt_price).collect();
+    let valid_prices: Vec<f64> = price_options
+        .iter()
+        .filter_map(|&opt_price| opt_price)
+        .collect();
 
     if valid_prices.is_empty() {
         None
@@ -67,11 +70,11 @@ mod tests {
         assert!((aggregated - 123.45).abs() < DELTA);
     }
 
-     #[test]
+    #[test]
     fn test_with_real_world_like_values() {
         let prices = [Some(60100.50), Some(60102.30), None, Some(60098.10)];
         let expected_avg = (60100.50 + 60102.30 + 60098.10) / 3.0;
         let aggregated = aggregate_prices(&prices).unwrap();
         assert!((aggregated - expected_avg).abs() < DELTA);
     }
-} 
+}

@@ -1,8 +1,8 @@
+use crate::config::ExchangeConfig;
 use anyhow::Result;
 use reqwest::Client;
 use serde::Deserialize;
 use std::collections::HashMap;
-use crate::config::ExchangeConfig;
 
 #[derive(Deserialize, Debug)]
 pub struct BinanceTickerResponse {
@@ -10,7 +10,11 @@ pub struct BinanceTickerResponse {
     pub price: String,
 }
 
-async fn get_binance_ticker_price(client: &Client, base_url: &str, symbol: &str) -> Result<BinanceTickerResponse> {
+async fn get_binance_ticker_price(
+    client: &Client,
+    base_url: &str,
+    symbol: &str,
+) -> Result<BinanceTickerResponse> {
     let url = format!("{}?symbol={}", base_url, symbol);
     log::debug!("Fetching price for {} from Binance: {}", symbol, url);
     let response = client.get(&url).send().await?;
@@ -75,4 +79,4 @@ mod tests {
         // assert_eq!(prices.get("BTCUSDT"), Some(&"mock_price".to_string()));
     }
     */
-} 
+}
