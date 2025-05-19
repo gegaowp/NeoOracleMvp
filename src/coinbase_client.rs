@@ -2,6 +2,7 @@ use anyhow::Result;
 use reqwest::Client;
 use serde::Deserialize;
 use std::collections::HashMap;
+use crate::config::ExchangeConfig;
 
 #[derive(Deserialize, Debug)]
 pub struct CoinbaseTickerResponse {
@@ -10,10 +11,9 @@ pub struct CoinbaseTickerResponse {
     // We only care about the price for now.
 }
 
-async fn get_coinbase_ticker_price(client: &Client, product_id: &str) -> Result<CoinbaseTickerResponse> {
-    // Using the Coinbase Pro API endpoint structure, which is often similar in Coinbase Advanced Trade
-    // For spot prices, it's typically /products/{product_id}/ticker
-    let url = format!("https://api.exchange.coinbase.com/products/{}/ticker", product_id);
+async fn get_coinbase_ticker_price(client: &Client, base_url: &str, product_id: &str) -> Result<CoinbaseTickerResponse> {
+    // Construct URL from base_url and product_id
+    let url = format!("{}/{}/ticker", base_url, product_id);
     log::debug!("Fetching price for {} from Coinbase: {}", product_id, url);
 
     // Coinbase API often requires a User-Agent header
@@ -28,15 +28,13 @@ async fn get_coinbase_ticker_price(client: &Client, product_id: &str) -> Result<
     Ok(ticker_response)
 }
 
-pub async fn get_coinbase_prices() -> Result<HashMap<String, String>> {
+pub async fn get_coinbase_prices(config: &ExchangeConfig) -> Result<HashMap<String, String>> {
     let client = Client::new();
     let mut prices = HashMap::new();
 
-    // Coinbase uses product IDs like "BTC-USD" and "ETH-USD"
-    let product_ids = ["BTC-USD", "ETH-USD"];
-
-    for &product_id in &product_ids {
-        match get_coinbase_ticker_price(&client, product_id).await {
+    // Use product_ids from config.symbols
+    for product_id in &config.symbols {
+        match get_coinbase_ticker_price(&client, &config.base_url, product_id).await {
             Ok(response) => {
                 prices.insert(product_id.to_string(), response.price);
             }

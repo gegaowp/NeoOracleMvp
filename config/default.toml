@@ -1,0 +1,12 @@
+# Default configuration for Neo Oracle MVP
+
+[apis.binance]
+base_url = "https://api.binance.com/api/v3/ticker/price" # Specific endpoint for ticker price
+symbols = ["BTCUSDT", "ETHUSDT"]
+
+[apis.coinbase]
+base_url = "https://api.exchange.coinbase.com/products" # Base for product-specific paths
+symbols = ["BTC-USD", "ETH-USD"]
+
+# Example for adding another symbol later:
+# symbols = ["BTCUSDT", "ETHUSDT", "ADAUSDT"] 
